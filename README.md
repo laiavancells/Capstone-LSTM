@@ -93,6 +93,5 @@ This project is licensed under the laiavancells License - see the LICENSE.md fil
 
 ## Acknowledgments
 
-Inspiration, code snippets, etc.
 I would like to thank Dr. Drazan for their valuable feedback and contributions to this project. His insights and expertise were instrumental in improving the quality of our work.
 
