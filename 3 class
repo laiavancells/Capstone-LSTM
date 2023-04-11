@@ -1,0 +1,80 @@
+#import data
+from mat4py import loadmat
+
+data = loadmat('updated_structure_load_sol_2_3_2023.mat')
+
+#import necessary libraries
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from itertools import chain
+import os
+
+# Create empty lists for timeseries data and labels
+timeseries_list = []
+label_list = []
+
+# Define lists of inclines, speeds, and subjects
+inclines = ['incline_0', 'incline_5','incline_10', 'incline_15','incline_20', 'incline_25']
+speeds = ['Slow', 'Medium', 'Fast']
+subjects = ['Sub002','Sub003','Sub004','Sub005','Sub006','Sub007','Sub008','Sub009','Sub010','Sub011','Sub012','Sub013','Sub014','Sub015' ]
+
+# Loop through each subject
+for subject in subjects:
+    label = 0 # Set label to 0
+    for incline in inclines: #Loop through each incline
+        for speed in speeds: ## Loop through each speed
+            try:
+                subject_data = data['data_proc'][subject]['sorted_steps'][incline][speed]
+            except:
+                continue
+           
+
+            
+            for key, value in subject_data.items(): # Loop through each key-value pair in the subject data
+                Forefoot_list = list(chain.from_iterable(value['Forefoot'])) # Flatten the Forefoot, Midfoot, and Heel data into lists
+                Midfoot_list = list(chain.from_iterable(value['Midfoot']))
+                Heel_list = list(chain.from_iterable(value['Heel']))
+                Forefoot_list = Forefoot_list[0:85] # Take only the first 85 values of each list
+                Midfoot_list = Midfoot_list[0:85]
+                Heel_list = Heel_list[0:85]
+                All_list = Forefoot_list+Midfoot_list+Heel_list # Combine the three lists into one list of length 255
+                if len(All_list)!=255:# prevent any null lists to be appended to 2D list
+                    continue
+                timeseries_list.append([All_list]) # Append the list to the timeseries data list and the label to the label list
+                label_list.append(label)           
+               
+            label+= 1   # Increment the label for the next speed
+                
+# Convert the timeseries data list and label list to numpy arrays
+timeseries_matrix = np.array(timeseries_list)    
+label_array = np.array(label_list)    
+timeseries_matrix.shape
+
+# Reshape the timeseries_matrix to a 3D tensor with 85 time steps and 3 features per step
+timeseries_matrix = timeseries_matrix.reshape(-1,85,3 )
+
+#partition
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(timeseries_matrix, label_array, test_size=0.20,shuffle=True, random_state=42)
+
+# Import the TensorFlow library
+import tensorflow as tf
+
+# Define the RNN model
+model = tf.keras.Sequential()
+model.add(tf.keras.layers.LSTM(64, input_shape=(85, 3)))
+model.add(tf.keras.layers.Dense(32, activation='relu'))
+model.add(tf.keras.layers.Dense(18, activation='softmax'))
+
+# Compile the model
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['sparse_categorical_accuracy'])
+
+# Train the model
+history = model.fit(X_train, y_train, epochs=200, batch_size=32, validation_data=(X_test,y_test))
+
+plt.title('accuracy')
+plt.plot(history.history['acc'], 'r')
+plt.plot(history.history['val_acc'], 'b')
+plt.show()
